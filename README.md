@@ -1,0 +1,6 @@
+- Basic Course Selling Backend API meant for learning purposes
+- Used Zod for input validation
+- Used MongoDB database to to store the User, Admin and Courses Information
+- Bcrypt library is used to store and match hashed password.
+- JWT is used to ensure valid authorization
+- dotenv is used for storing confidential information
