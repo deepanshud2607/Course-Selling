@@ -18,7 +18,7 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-      <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-950"><span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600 text-sm text-white">C</span>CourseHub</Link>
+      <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-950"><img className="h-9 w-9 rounded-lg object-cover" src="https://i.ibb.co/9H6gwVYG/Gemini-Generated-Image-9bpxzf9bpxzf9bpx.png" alt="CourseHub" />CourseHub</Link>
 
       <ul className="flex items-center gap-4 text-sm font-medium text-slate-600 sm:gap-6">
         <li><Link className="hover:text-slate-950" to="/">Browse</Link></li>

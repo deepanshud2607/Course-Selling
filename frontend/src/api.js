@@ -20,6 +20,8 @@ export const getCoursePreview  = (id) => fetch(`/courses/preview?courseID=${id}`
 export const userSignup   = (body)         => fetch('/user/signup',  { method: 'POST', headers: headers(), body: JSON.stringify(body) }).then(handle);
 export const userLogin    = (body)         => fetch('/user/login',   { method: 'POST', headers: headers(), body: JSON.stringify(body) }).then(handle);
 export const googleLogin  = (credential)   => fetch('/user/google',  { method: 'POST', headers: headers(), body: JSON.stringify({ credential }) }).then(handle);
+export const verifyEmailOtp = (email, otp) => fetch('/user/verify-email', { method: 'POST', headers: headers(), body: JSON.stringify({ email, otp }) }).then(handle);
+export const resendEmailOtp = (email)      => fetch('/user/resend-otp', { method: 'POST', headers: headers(), body: JSON.stringify({ email }) }).then(handle);
 export const userResetPass = (body, token) => fetch('/user/resetPass', { method: 'PUT', headers: headers(token), body: JSON.stringify(body) }).then(handle);
 export const getPurchases = (token)        => fetch('/user/purchases', { headers: headers(token) }).then(handle);
 export const purchaseCourse = (id, token)  => fetch(`/user/purchase?courseID=${id}`, { method: 'POST', headers: headers(token) }).then(handle);

@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema({
     password : String,
     firstName : String, 
     lastName : String,
+    emailVerified: { type: Boolean, default: false },
+    verificationCode: String,
+    verificationCodeExpiresAt: Date,
 });
 
 const adminSchema = new mongoose.Schema({
@@ -20,6 +23,7 @@ const courseSchema = new mongoose.Schema({
     description : String,
     price : Number,
     imageURL : String,
+    contentURL: String,
     creatorID : { type : mongoose.Schema.Types.ObjectId, ref: "Admins"},
 });
 

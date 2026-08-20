@@ -14,6 +14,7 @@ const courseValid = z.object({
     description : z.string().min(30),
     price : z.coerce.number(),
     imageURL : z.url(),
+    contentURL : z.url(),
 })
 
 module.exports = {

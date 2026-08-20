@@ -5,11 +5,21 @@ const userRouter = Router();
 const bcrypt = require("bcrypt");
 const { OAuth2Client } = require("google-auth-library");
 const { validation, passwordValidation } = require("../schemas/validation");
+const { sendVerificationCode, sendCourseAccess } = require("../email");
+const crypto = require("crypto");
 require("dotenv").config();
 
 
 const jwtPass = process.env.USER_JWT_SECRET;
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+function createOtp() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+function hashOtp(otp) {
+  return crypto.createHash("sha256").update(otp).digest("hex");
+}
 
 async function authMiddleware(req, res, next) {
   try {
@@ -41,14 +51,18 @@ userRouter.post("/signup", async (req, res, next) => {
       return res.status(409).send("Account with this mail already exists");
     }
     const hashedPass = await bcrypt.hash(password, 10 );
+    const otp = createOtp();
     await User.create({
       email,
       password: hashedPass,
       firstName,
       lastName,
+      emailVerified: false,
+      verificationCode: hashOtp(otp),
+      verificationCodeExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
-
-    res.status(201).send("User Created");
+    await sendVerificationCode(email, otp);
+    res.status(202).send("Verification code sent to your email");
   } catch (err) {
     next(err);
   }
@@ -61,6 +75,9 @@ userRouter.post("/login", async (req, res, next) => {
     if (!user) {
       return res.status(404).send("User doesn't exist. Signup");
     }
+    if (user.emailVerified === false) {
+      return res.status(403).send("Verify your email with the OTP before signing in");
+    }
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).send("Incorrect Password entered");
@@ -71,6 +88,36 @@ userRouter.post("/login", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+userRouter.post("/verify-email", async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !/^\d{6}$/.test(otp || "")) return res.status(400).send("Enter a valid six-digit code");
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user || user.emailVerified || !user.verificationCodeExpiresAt || user.verificationCodeExpiresAt < new Date() || user.verificationCode !== hashOtp(otp)) {
+      return res.status(400).send("The code is invalid or has expired");
+    }
+    user.emailVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpiresAt = undefined;
+    await user.save();
+    res.status(200).send("Email verified. You can now sign in.");
+  } catch (err) { next(err); }
+});
+
+userRouter.post("/resend-otp", async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email?.toLowerCase() });
+    if (!user || user.emailVerified) return res.status(400).send("This email does not need verification");
+    const otp = createOtp();
+    user.verificationCode = hashOtp(otp);
+    user.verificationCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+    await sendVerificationCode(user.email, otp);
+    res.status(200).send("A new verification code was sent");
+  } catch (err) { next(err); }
 });
 
 // The browser sends Google's short-lived ID token here. It is verified with
@@ -98,6 +145,7 @@ userRouter.post("/google", async (req, res, next) => {
         password: await bcrypt.hash(require("crypto").randomBytes(32).toString("hex"), 10),
         firstName: payload.given_name || names[0],
         lastName: payload.family_name || names.slice(1).join(" "),
+        emailVerified: true,
       });
     }
 
@@ -172,7 +220,15 @@ userRouter.post("/purchase", async (req, res, next) => {
       userID: userID,
       courseID: id,
     });
-    res.status(201).send("Successfully Purchased");
+    const user = await User.findById(userID);
+    try {
+      await sendCourseAccess(user.email, data);
+      res.status(201).send("Successfully purchased. Your course link was emailed to you.");
+    } catch (emailError) {
+      // The purchase is already safely recorded; the buyer can ask support to resend the link.
+      console.error("Purchase email failed:", emailError.message);
+      res.status(201).send("Successfully purchased, but we could not email the course link yet.");
+    }
   } catch (err) {
     next(err);
   }

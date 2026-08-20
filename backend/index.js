@@ -11,7 +11,7 @@ const app = express();
 
 app.use(express.json()); //For Parsing the Body
 
-const port = process.env.PORT; 
+const port = process.env.PORT || 3000;
 
 app.use("/user", userRouter); 
 app.use("/admin", adminRouter);
@@ -31,4 +31,7 @@ async function main(){
     console.log(`Listening to port ${port}`); //Listen to the port only if database is connected otherwise throw an error
     })
 }
-main(); //Use the Main function
+main().catch((err) => {
+    console.error("Could not start server:", err.message);
+    process.exit(1);
+});

@@ -123,7 +123,7 @@ adminRouter.get('/courses', async (req,res, next) =>{
 
 adminRouter.post('/courses', async (req,res, next) => {
     try{
-    const { title, description, price, imageURL } = req.body;
+    const { title, description, price, imageURL, contentURL } = req.body;
     const isValid = courseValid.safeParse(req.body);
     if(!(isValid.success)){
         return res.status(400).send("Invalid Format for Course Addition");
@@ -134,6 +134,7 @@ adminRouter.post('/courses', async (req,res, next) => {
         description,
         price,
         imageURL,
+        contentURL,
         creatorID : adminID,
     });
     res.status(201).send("Course Added");
@@ -144,7 +145,7 @@ adminRouter.post('/courses', async (req,res, next) => {
 
 adminRouter.put('/courses', async (req,res, next) =>{
     try{
-        const { title, description, price, imageURL } = req.body;
+        const { title, description, price, imageURL, contentURL } = req.body;
         const isValid = courseValid.partial().safeParse(req.body);
         const courseID = req.query.courseID;
         const adminID = req.adminID;
@@ -159,6 +160,7 @@ adminRouter.put('/courses', async (req,res, next) =>{
         if(description !== undefined) course.description = description;
         if(price !== undefined) course.price = price;
         if(imageURL !== undefined) course.imageURL = imageURL;
+        if(contentURL !== undefined) course.contentURL = contentURL;
         await course.save();
         res.status(200).send("Course updated");
     }catch(err){

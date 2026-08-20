@@ -6,7 +6,7 @@ const courseRouter = Router();
 
 courseRouter.get('/', async (req, res)=>{
     try{
-        const courses = await Course.find();
+        const courses = await Course.find().select('-contentURL');
         res.status(200).json(courses);
 
     }catch(err){
@@ -18,7 +18,7 @@ courseRouter.get('/', async (req, res)=>{
 courseRouter.get('/preview', async (req,res, next) =>{
     try{
         const courseID = req.query.courseID;
-        const course = await Course.findById(courseID);
+        const course = await Course.findById(courseID).select('-contentURL');
         if(!course){
             return res.status(404).send("No Course with this course ID");
         }
