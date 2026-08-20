@@ -32,4 +32,3 @@ async function main(){
     })
 }
 main(); //Use the Main function
-

@@ -70,7 +70,7 @@ adminRouter.post('/login', async (req,res, next) => {
         if(!match){
             return res.status(403).send("Incorrect password.");
         }
-        const token =  jwt.sign({adminID : admin._id}, jwtPass);
+        const token =  jwt.sign({adminID : admin._id}, jwtPass, { expiresIn : '1h' });
         res.status(200).json({authorization : token});
 
     }catch(err){

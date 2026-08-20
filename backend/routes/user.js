@@ -3,11 +3,13 @@ const { User, Course, Purchases } = require("../schemas/db");
 const jwt = require("jsonwebtoken");
 const userRouter = Router();
 const bcrypt = require("bcrypt");
+const { OAuth2Client } = require("google-auth-library");
 const { validation, passwordValidation } = require("../schemas/validation");
 require("dotenv").config();
 
 
 const jwtPass = process.env.USER_JWT_SECRET;
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 async function authMiddleware(req, res, next) {
   try {
@@ -38,7 +40,7 @@ userRouter.post("/signup", async (req, res, next) => {
     if (user) {
       return res.status(409).send("Account with this mail already exists");
     }
-    const hashedPass = await bcrypt.hash(password, 10);
+    const hashedPass = await bcrypt.hash(password, 10 );
     await User.create({
       email,
       password: hashedPass,
@@ -64,9 +66,45 @@ userRouter.post("/login", async (req, res, next) => {
       return res.status(401).send("Incorrect Password entered");
     }
 
-    const token = jwt.sign({ id: user._id }, jwtPass);
+    const token = jwt.sign({ id: user._id }, jwtPass, { expiresIn: "5d" });
     res.status(200).json({ authorization: token });
   } catch (err) {
+    next(err);
+  }
+});
+
+// The browser sends Google's short-lived ID token here. It is verified with
+// Google before we create or sign in a local CourseHub user.
+userRouter.post("/google", async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).send("Google credential is required");
+    if (!process.env.GOOGLE_CLIENT_ID) return res.status(500).send("Google sign-in is not configured");
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload?.email || !payload.email_verified) return res.status(401).send("Google email could not be verified");
+
+    let user = await User.findOne({ email: payload.email.toLowerCase() });
+    if (!user) {
+      const names = (payload.name || "Google User").trim().split(/\s+/);
+      user = await User.create({
+        email: payload.email.toLowerCase(),
+        // A random hash keeps the existing password schema compatible. This
+        // account is authenticated through Google unless a password is later set.
+        password: await bcrypt.hash(require("crypto").randomBytes(32).toString("hex"), 10),
+        firstName: payload.given_name || names[0],
+        lastName: payload.family_name || names.slice(1).join(" "),
+      });
+    }
+
+    const token = jwt.sign({ id: user._id }, jwtPass, { expiresIn: "5d" });
+    res.status(200).json({ authorization: token });
+  } catch (err) {
+    if (err.message?.toLowerCase().includes("token")) return res.status(401).send("Invalid Google credential");
     next(err);
   }
 });
@@ -121,6 +159,10 @@ userRouter.post("/purchase", async (req, res, next) => {
   try {
     const id = req.query.courseID;
     const userID = req.userID;
+    const isAlreadyPurchased = await Purchases.findOne({ userID, courseID: id });
+    if (isAlreadyPurchased) {
+      return res.status(400).send("Course Already Purchased");
+    }
     const data = await Course.findById(id);
     if (!data) {
       return res.status(404).send("Course Not Found");
